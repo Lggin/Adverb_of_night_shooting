@@ -7,7 +7,7 @@ from std_msgs.msg import Int32
 from flask import Flask, render_template, jsonify
 
 # API 키 설정
-MY_API_KEY = "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"
+MY_API_KEY = "your api key"
 os.environ["OPENAI_API_KEY"] = MY_API_KEY
 
 from langchain_openai import ChatOpenAI
