@@ -1,142 +1,92 @@
-# 🎯 ArmyBot Project  
-> ROS 2 + AI Vision + 음성 제어 기반 **군 사격 훈련 전 과정 자동화 시스템**
+# ArmyBot — ROS 2 + Vision + Voice Robotics Automation
+
+> ROS 2, AI Vision, Depth Camera, Arduino, VLM, 협동로봇을 통합한 군 사격 훈련 자동화 프로젝트
+
+## Overview
+
+ArmyBot은 사격 훈련 과정에서 발생하는 **표적 분석의 수작업 의존성**, **탄피·탄알집 수거 인력 소모**, **훈련 결과의 비정량적 관리**를 줄이기 위해 개발한 자동화 시스템입니다.
+
+Doosan M0609 협동로봇을 중심으로 음성 명령, YOLO 객체 탐지, RealSense Depth, Arduino 이벤트 감지, VLM 기반 표적 분석, Flask UI를 연결해 다음 흐름을 구현했습니다.
+
+```text
+Voice Command
+    ↓
+Robot Ready Pose
+    ↓
+Arduino Shot Event
+    ↓
+YOLO + RealSense Detection
+    ↓
+Depth → Robot Coordinate Transform
+    ↓
+Robot Collection Task
+    ↓
+Target Capture → VLM Analysis
+    ↓
+Result Storage / UI
+```
 
 ---
 
-## 📌 Overview
+## System Components
 
-ArmyBot은  
-기존 군 사격 훈련 과정에서 발생하는 **표적 분석의 수작업 의존성**,  
-**탄피 및 탄알집 수거 인력 소모**,  
-**훈련 데이터의 비정량적 관리 문제**를 해결하기 위해 개발된  
-지능형 로봇 자동화 시스템입니다.
-
-본 프로젝트는  
-두산 로보틱스의 **M0609 협동로봇**을 기반으로,  
-
-- 🎙 음성 인식 제어 시스템  
-- 👁 YOLO 기반 객체 탐지  
-- 🧠 VLM 기반 표적 분석  
-- 🔌 Arduino 엣지 디바이스 연동  
-
-을 통합하여 **사격 준비 → 격발 감지 → 탄피/탄알집 수거 → 표적 분석 → 결과 저장**까지  
-전 과정을 자동화했습니다.
+| Component | Role |
+|---|---|
+| **ROS 2 Humble** | 노드 간 통신 및 전체 시스템 오케스트레이션 |
+| **Doosan M0609** | 탄피·탄알집 수거 및 물리 작업 수행 |
+| **YOLOv8** | 탄피·탄알집 객체 탐지 |
+| **RealSense D435i** | RGB-D 데이터 및 대상 위치 추정 |
+| **Arduino** | 격발 이벤트 감지 및 시리얼 통신 |
+| **Gemini VLM** | 촬영된 표적 이미지 분석 |
+| **Flask** | 지휘자/사수용 UI |
+| **SpeechRecognition / gTTS** | 음성 명령 및 안내 |
 
 ---
 
-# 🎯 Motivation
+## Core Features
 
-### 기존 사격 훈련의 한계
+### 1. Vision + Depth 기반 대상 위치 추정
 
-- 표적지 분석을 인력이 수동 수행
-- 탄피 및 탄알집 정리에 시간 소모
-- 사격 결과 데이터의 정량적 축적 어려움
-- 훈련 자동화 시스템 부재
+YOLO로 탄피·탄알집을 탐지하고 RealSense Depth를 이용해 카메라 좌표계의 위치를 얻은 뒤, 캘리브레이션 행렬을 적용해 **Robot 좌표계로 변환**했습니다.
 
-### 우리가 해결한 문제
+### 2. Robot Manipulation
 
-ArmyBot은 다음을 목표로 설계되었습니다:
+변환된 위치 정보를 ROS 2 로봇 제어 노드로 전달해 Doosan M0609이 실제 수거 동작을 수행하도록 구성했습니다.
 
-- 🔄 훈련 프로세스 자동화
-- 📊 AI 기반 표적 분석 정량화
-- 🤖 로봇을 활용한 물리적 작업 자동 수행
-- 🗣 음성 기반 직관적 인터페이스 제공
+### 3. Arduino–ROS 2 Integration
 
----
+격발 이벤트를 Arduino에서 감지하고 PySerial 기반 통신으로 ROS 2 시스템에 전달해, 이벤트 발생 이후의 자동화 플로우를 트리거했습니다.
 
-# 🏗 System Architecture
+### 4. Voice-driven Workflow
 
-<p align="center">
-  <img src="./System_Architecture.png" width="700">
-</p>
+음성 명령을 시스템 상태 전환의 입력으로 사용해 사람이 복잡한 UI를 조작하지 않아도 준비·실행 흐름을 시작할 수 있도록 구성했습니다.
 
-### 핵심 구성 요소
+### 5. VLM-based Target Analysis
 
-| 구성 요소 | 역할 |
-|------------|--------|
-| ROS 2 Humble | 전체 노드 통신 및 시스템 제어 |
-| Jarvis Voice Node | 음성 인식 및 명령 트리거 |
-| YOLO + RealSense | 탄피 / 탄알집 객체 탐지 |
-| Gemini VLM | 표적지 AI 분석 |
-| Arduino | 격발 신호 감지 |
-| M0609 Robot Arm | 물리적 수거 작업 수행 |
-| Flask | User Interface 구현 |
+사격 종료 후 표적 이미지를 촬영하고 VLM으로 분석해 결과를 저장하는 흐름을 구현했습니다.
 
 ---
 
-# 🔄 System Flow
-
-<p align="center">
-  <img src="./Flow_chart.png" width="450">
-</p>
-
-### 동작 순서
-
-1. "자비스, 준비" 음성 명령
-2. 로봇 사격 준비 자세 이동
-3. Arduino 격발 감지
-4. YOLO 객체 탐지
-5. Depth → Robot 좌표 변환
-6. 로봇 탄피/탄알집 수거
-7. 표적지 촬영
-8. Gemini VLM 분석
-9. 결과 저장
-
----
-
-# 🛠 Tech Stack
-
-## 🖥 Environment
-- Ubuntu 22.04 LTS
-- ROS 2 Humble
-- Python 3.10
-- JavaScript
-- HTML
-
-## 🤖 Robotics
-- Doosan Robotics M0609
-- DSR_ROBOT2 Python API
-- Onrobot RG2 Gripper
-
-## 👁 Vision & AI
-- `ultralytics` (YOLOv8)
-- :contentReference[oaicite:2]{index=2} RealSense D435i
-- Gemini API (VLM 분석)
-- OpenCV
-
-## 🔌 Embedded
-- Arduino (격발 감지)
-- PySerial
-
-## 🎙 Voice System
-- SpeechRecognition
-- gTTS
-
----
-
-# 👨‍💻 My Contribution
+## My Contribution
 
 - ROS 2 기반 로봇 제어 노드 설계 및 구현
 - RealSense Depth → Robot 좌표계 변환 알고리즘 구현
 - YOLO 기반 객체 탐지 파이프라인 구축
-- Arduino-ROS2 시리얼 통신 프로토콜 설계
+- Arduino–ROS 2 시리얼 통신 프로토콜 설계
 - 음성 명령 기반 자동 실행 로직 설계
-- 전체 시스템 통합 및 디버깅
+- Vision–Robot–Embedded–VLM 전체 시스템 통합 및 디버깅
 
 ---
 
-# 📊 Key Achievements
+## Tech Stack
 
-- ✅ 사격 후 정리 자동화 구현
-- ✅ 객체 탐지 및 로봇 픽업 파이프라인 완성
-- ✅ 음성 명령 기반 무인 자동화 시스템 구축
-- ✅ Vision-AI-Robot-Embedded 통합 아키텍처 설계 경험 확보
+`Ubuntu 22.04` `ROS 2 Humble` `Python` `YOLOv8` `OpenCV` `RealSense D435i` `Arduino` `PySerial` `Gemini VLM` `Flask` `Doosan M0609`
 
 ---
 
-# 📂 Project Structure
+## Project Structure
 
-
+```text
 armybot/
 ├── robot_control.py
 ├── yolo_node.py
@@ -154,79 +104,23 @@ resource/
 ├── calibration_matrix.yaml
 └── result/
 
-od_msg/srv/
-└── SrvDepthPosition.srv
-
 armbot_web/
 ├── commander.py
 ├── shooter.py
-├── templates/
-├───── commander.html
-└───── shooter.html
+└── templates/
+```
 
 ---
 
-# ▶️ How to Run
+## Key Learning
 
-## Arduino Bridge
-cd ir_gunshot_staff
-colcon build --packages-select armybot arduino_bridge
-source install/setup.bash
-ros2 run arduino_bridge switch_edge_pub
+이 프로젝트에서 가장 중요한 경험은 AI 모델 하나를 만드는 것이 아니라 **Vision, Depth, Robot Control, Embedded Event, Voice, VLM을 하나의 동작 가능한 시스템으로 연결하는 것**이었습니다.
 
-## Voice Control System
-cd ir_gunshot_staff/src/jarvis_project
-python3 jarvis.py
+각 모듈이 개별적으로 동작하더라도 좌표계, 메시지 규격, 이벤트 순서, 예외 처리 방식이 맞지 않으면 전체 서비스가 실패한다는 점을 경험하며 시스템 통합의 중요성을 배웠습니다.
 
-## Armybot
-─── Terminal 1
-ros2 launch dsr_bringup2 dsr_bringup2_rviz.launch.py mode:=real host:=192.168.1.100 port:=12345 model:=m0609
+---
 
-─── Terminal 2
-ros2 launch realsense2_camera rs_align_depth_launch.py depth_module.depth_profile:=848x480x30 rgb_camera.color_profile:=1280x720x30 initial_reset:=true align_depth.enable:=true enable_rgbd:=true enable_infra:=true enable_infra1:=true enable_infra2:=true depth_module.emitter_enabled:=1 pointcloud.enable:=true
+## Team
 
-─── Terminal 3
-realsense-viewer
-└──realsenseIRconfig.json
-
-─── Terminal 4
-cd ir_gunshot_staff
-colcon build --packages-select armybot
-source install/setup.bash
-ros2 launch armybot armybot.launch.py
-
-## UI
-─── Terminal 5
-cd ir_gunshot_staff/src/armbot_web
-python3 commander.py
-
-─── Terminal 6
-cd ir_gunshot_staff/src/armbot_web
-python3 shooter.py
-
-# 💡 What I Learned
-
-ROS 2 기반 분산 노드 아키텍처 설계 경험
-
-Vision-Depth 좌표 변환 실전 적용
-
-로봇 제어에서의 정밀도와 안정성 문제 해결
-
-임베디드-로봇 간 실시간 통신 설계
-
-AI 모델을 실제 물리 시스템에 통합하는 방법
-
-# 🚀 Future Improvements
-
-멀티 타겟 동시 분석 기능
-
-사격 점수 자동 정량화 알고리즘 개선
-
-UI 기반 실시간 모니터링 시스템 구축
-
-실시간 대시보드 시각화
-
-# 👥 Team
-
-ROKEY D-3조 | 
+ROKEY D-3  
 이강인 · 주진 · 최순일 · 최재형
